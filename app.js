@@ -24,7 +24,7 @@ app.use(express.json());
 // })
 const BASE_URL = "https://mernbackend-1-fcec.onrender.com";
 app.get("/", (req, res) => {
-  res.status(400).json();
+  res.status(400).json("HELLO");
 });
 // app.post("/book", (req, res) => {
 //     console.log(req.body)
