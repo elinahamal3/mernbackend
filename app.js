@@ -13,6 +13,7 @@ const app = express();
 app.use(
   cors({
     origin: "http://localhost:5173",
+            "https://mern-stack-7pp1-pi.vercel.app/"
   })
 );
 const PORT = process.env.Port || 3000;
