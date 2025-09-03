@@ -6,34 +6,32 @@ const fs = require("fs");
 const Book = require("./model/bookmodel.js");
 const { multer, storage } = require("./middleware/multerconfig.js");
 const upload = multer({ storage: storage });
-
 const cors = require("cors");
 
 const app = express();
+
 app.use(
   cors({
     origin: ["http://localhost:5173", "https://mern-stack-7pp1-pi.vercel.app"],
   })
 );
-const PORT = process.env.Port || 3000;
+
+const PORT = process.env.PORT || 3000;
+const BASE_URL = "https://mernbackend-1-fcec.onrender.com";
+
 app.use(express.json());
 
-// app.get("/", (req, res) => {
-//     res.send('goodmorning');
-
-// })
-const BASE_URL = "https://mernbackend-1-fcec.onrender.com";
+// Root route
 app.get("/", (req, res) => {
-  res.status(400).json("HELLO");
+  res.status(200).json({ message: "Backend is running 🚀" });
 });
-// app.post("/book", (req, res) => {
-//     console.log(req.body)
-// })
-// create book
+
+// Create book
 app.post("/book", upload.single("image"), async (req, res) => {
   let fileName = req.file
     ? `${BASE_URL}/${req.file.filename}`
     : "https://cdn.vectorstock.com/i/preview-1x/77/30/default-avatar-profile-icon-grey-photo-placeholder-vector-17317730.jpg";
+
   const {
     bookName,
     bookPrice,
@@ -42,6 +40,7 @@ app.post("/book", upload.single("image"), async (req, res) => {
     publishedAt,
     publication,
   } = req.body;
+
   const newBook = await Book.create({
     bookName,
     bookPrice,
@@ -51,37 +50,31 @@ app.post("/book", upload.single("image"), async (req, res) => {
     publication,
     imageUrl: fileName,
   });
-  res.status(201).json({
-    message: "Book Created Successfully",
-  });
+
+  res.status(201).json({ message: "Book Created Successfully" });
 });
 
-// all read
+// Get all books
 app.get("/book", async (req, res) => {
-  const books = await Book.find(); // return array ma garxa
-  res.status(200).json({
-    message: "Books fetched successfully",
-    data: books,
-  });
+  const books = await Book.find();
+  res.status(200).json({ message: "Books fetched successfully", data: books });
 });
-// single read
+
+// Get single book
 app.get("/book/:id", async (req, res) => {
   const id = req.params.id;
-  const book = await Book.findById(id); // return object garxa
+  const book = await Book.findById(id);
 
   if (!book) {
-    res.status(404).json({
-      message: "Nothing found",
-    });
+    res.status(404).json({ message: "Nothing found" });
   } else {
-    res.status(200).json({
-      message: "Single Book Fetched Successfully",
-      data: book,
-    });
+    res
+      .status(200)
+      .json({ message: "Single Book Fetched Successfully", data: book });
   }
 });
 
-//delete operation
+// Delete book
 app.delete("/book/:id", async (req, res) => {
   const id = req.params.id;
 
@@ -89,12 +82,10 @@ app.delete("/book/:id", async (req, res) => {
     const book = await Book.findById(id);
 
     if (!book) {
-      return res.status(404).json({
-        message: "Book not found",
-      });
+      return res.status(404).json({ message: "Book not found" });
     }
 
-    // Delete image file only if it's stored locally (not placeholder or external link)
+    // Delete image file if stored locally
     if (book.imageUrl && book.imageUrl.startsWith(BASE_URL)) {
       const imagePath = book.imageUrl.slice(BASE_URL.length + 1);
       fs.unlink(`storage/${imagePath}`, (err) => {
@@ -102,22 +93,19 @@ app.delete("/book/:id", async (req, res) => {
         else console.log("Image file deleted successfully");
       });
     }
-    // Delete book from DB
+
     await Book.findByIdAndDelete(id);
 
-    res.status(200).json({
-      message: "Book Deleted Successfully",
-    });
+    res.status(200).json({ message: "Book Deleted Successfully" });
   } catch (error) {
     console.error("Error deleting book:", error);
-    res.status(500).json({
-      message: "Something went wrong",
-    });
+    res.status(500).json({ message: "Something went wrong" });
   }
 });
-// update operation
+
+// Update book
 app.patch("/book/:id", upload.single("image"), async (req, res) => {
-  const id = req.params.id; // kun book update garney id ho yo
+  const id = req.params.id;
   const {
     bookName,
     bookPrice,
@@ -127,6 +115,7 @@ app.patch("/book/:id", upload.single("image"), async (req, res) => {
     isbnNumber,
   } = req.body;
   const oldDatas = await Book.findById(id);
+
   if (!oldDatas) {
     return res.status(404).json({ message: "Book not found" });
   }
@@ -134,7 +123,7 @@ app.patch("/book/:id", upload.single("image"), async (req, res) => {
   let fileName = oldDatas.imageUrl;
 
   if (req.file) {
-    // delete old file if it was not a placeholder image
+    // Delete old file if not placeholder
     if (oldDatas.imageUrl && oldDatas.imageUrl.startsWith(BASE_URL)) {
       const oldImagePath = oldDatas.imageUrl.slice(BASE_URL.length + 1);
       fs.unlink(`storage/${oldImagePath}`, (err) => {
@@ -142,8 +131,6 @@ app.patch("/book/:id", upload.single("image"), async (req, res) => {
         else console.log("Old file deleted successfully");
       });
     }
-
-    // save new file path
     fileName = `${BASE_URL}/${req.file.filename}`;
   }
 
@@ -154,16 +141,17 @@ app.patch("/book/:id", upload.single("image"), async (req, res) => {
     publication,
     publishedAt,
     isbnNumber,
-    imageUrl: fileName, //  update image URL if changed
+    imageUrl: fileName,
   });
 
-  res.status(200).json({
-    message: "Book Updated Successfully",
-  });
+  res.status(200).json({ message: "Book Updated Successfully" });
 });
 
+// Serve static files
 app.use(express.static("./storage/"));
-app.listen(process.env.PORT, () => {
-  console.log("Nodejs server is running on port 3000");
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`Nodejs server is running on port ${PORT}`);
   connecttodatabase();
 });
