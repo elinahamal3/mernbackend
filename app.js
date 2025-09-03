@@ -22,7 +22,7 @@ app.use(express.json());
 //     res.send('goodmorning');
 
 // })
-const BASE_URL = "https://mernbackend-1f51.onrender.com";
+const BASE_URL = "https://mernbackend-1-fcec.onrender.com";
 app.get("/", (req, res) => {
   res.status(400).json();
 });
