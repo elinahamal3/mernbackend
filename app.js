@@ -23,6 +23,7 @@ app.use(express.json());
 //     res.send('goodmorning');
 
 // })
+const BASE_URL = "https://mernbackend-1f51.onrender.com";
 app.get("/", (req, res) => {
   res.status(400).json();
 });
@@ -31,14 +32,10 @@ app.get("/", (req, res) => {
 // })
 // create book
 app.post("/book", upload.single("image"), async (req, res) => {
-  let fileName;
-  if (!req.file) {
-    fileName =
-      "https://www.google.com/url?sa=i&url=https%3A%2F%2Fen.wikipedia.org%2Fwiki%2FStitch_%2528Lilo_%2526_Stitch%2529&psig=AOvVaw1SB-HqQDiTuB-s8NcPUSfo&ust=1753354349244000&source=images&cd=vfe&opi=89978449&ved=0CBUQjRxqFwoTCOjU4oro0o4DFQAAAAAdAAAAABAE";
-  } else {
-    fileName = "http://localhost:3000/" + req.file.filename;
-  }
-  const {
+let fileName = req.file
+        ? `${BASE_URL}/${req.file.filename}`
+        : "https://cdn.vectorstock.com/i/preview-1x/77/30/default-avatar-profile-icon-grey-photo-placeholder-vector-17317730.jpg";
+          const {
     bookName,
     bookPrice,
     isbnNumber,
@@ -87,56 +84,78 @@ app.get("/book/:id", async (req, res) => {
 
 //delete operation
 app.delete("/book/:id", async (req, res) => {
-  const id = req.params.id;
-  await Book.findByIdAndDelete(id);
-  res.status(200).json({
-    message: "Book Deleted Successfully",
-  });
-});
+    const id = req.params.id;
 
+    try {
+        const book = await Book.findById(id);
+
+        if (!book) {
+            return res.status(404).json({
+                message: "Book not found",
+            });
+        }
+
+        // Delete image file only if it's stored locally (not placeholder or external link)
+        if (book.imageUrl && book.imageUrl.startsWith(BASE_URL)) {
+            const imagePath = book.imageUrl.slice(BASE_URL.length + 1);
+            fs.unlink(`storage/${imagePath}`, (err) => {
+                if (err) console.error("Error deleting file:", err);
+                else console.log("Image file deleted successfully");
+            });
+        }
+        // Delete book from DB
+        await Book.findByIdAndDelete(id);
+
+        res.status(200).json({
+            message: "Book Deleted Successfully",
+        });
+    } catch (error) {
+        console.error("Error deleting book:", error);
+        res.status(500).json({
+            message: "Something went wrong",
+        });
+    }
+});
 // update operation
-app.patch("/book/:id", upload.single("image"), async (req, res) => {
-  const id = req.params.id; // kun book update garney id ho yo
-  const {
-    bookName,
-    bookPrice,
-    authorName,
-    publishedAt,
-    publication,
-    isbnNumber,
-  } = req.body;
-  const oldDatas = await Book.findById(id);
-  let fileName;
-  if (req.file) {
-    // console.log(req.file);
-    // console.log(oldDatas)
-    const oldImagePath = oldDatas.imageUrl;
-    console.log(oldImagePath);
-    const localhostlength = "http://localhost:3000/".length;
-    const newoldimagepath = oldImagePath.slice(localhostlength);
-    console.log(newoldimagepath);
+app.patch("/book/:id", upload.single('image'), async (req, res) => {
+    const id = req.params.id // kun book update garney id ho yo
+    const { bookName, bookPrice, authorName, publishedAt, publication, isbnNumber } = req.body
+    const oldDatas = await Book.findById(id)
+    if (!oldDatas) {
+        return res.status(404).json({ message: "Book not found" });
+    }
 
-    fs.unlink(`storage/${newoldimagepath}`, (err) => {
-      if (err) {
-        console.log(err);
-      } else {
-        console.log("file deleted successfully");
-      }
+    let fileName = oldDatas.imageUrl;
+
+    if (req.file) {
+        // delete old file if it was not a placeholder image
+        if (oldDatas.imageUrl && oldDatas.imageUrl.startsWith(BASE_URL)) {
+            const oldImagePath = oldDatas.imageUrl.slice(BASE_URL.length + 1);
+            fs.unlink(`storage/${oldImagePath}`, (err) => {
+                if (err) console.log("Error deleting old file:", err);
+                else console.log("Old file deleted successfully");
+            });
+        }
+
+        // save new file path
+        fileName = `${BASE_URL}/${req.file.filename}`;
+
+    }
+
+    await Book.findByIdAndUpdate(id, {
+        bookName,
+        bookPrice,
+        authorName,
+        publication,
+        publishedAt,
+        isbnNumber,
+        imageUrl: fileName,   //  update image URL if changed
     });
-    fileName = "http://localhost:3000/" + req.file.filename;
-  }
-  await Book.findByIdAndUpdate(id, {
-    bookName: bookName,
-    bookPrice: bookPrice,
-    authorName: authorName,
-    publication: publication,
-    publishedAt: publishedAt,
-    isbnNumber: isbnNumber,
-  });
-  res.status(201).json({
-    message: "Book Updated Successfully",
-  });
-});
+
+    res.status(200).json({
+        message: "Book Updated Successfully"
+    });
+})
 
 app.use(express.static("./storage/"));
 app.listen(process.env.PORT, () => {
